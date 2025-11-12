@@ -1,59 +1,47 @@
 from __future__ import annotations
 
-import os
-import sys
+import os, sys
 from pathlib import Path
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
+from dotenv import load_dotenv, find_dotenv
 
-# === Path setup: aggiunge la cartella "backend" al PYTHONPATH ===
+# Path: rende importabile "app" quando si esegue da migrations/
 BASE_DIR = Path(__file__).resolve().parents[1]  # .../backend
 sys.path.append(str(BASE_DIR))
 
-# === Carica le variabili da .env (in .../backend/.env) ===
-from dotenv import load_dotenv  # type: ignore
-
+# Carica .env (prima percorso esplicito, poi fallback)
 ENV_PATH = BASE_DIR / ".env"
-load_dotenv(ENV_PATH)
+load_dotenv(dotenv_path=ENV_PATH, override=True) or load_dotenv(find_dotenv(), override=True)
 
-# === Config Alembic (.ini) e logging ===
+# Config Alembic e logging
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# === DATABASE_URL dalla .env ===
+# Imposta URL DB dalla .env
 db_url = os.getenv("DATABASE_URL")
 if not db_url:
-    raise RuntimeError(
-        f"DATABASE_URL non trovata. Crea un file .env in {BASE_DIR} con, ad esempio:\n"
-        "DATABASE_URL=postgresql+psycopg://fridly:fridly@localhost:5432/fridly"
-    )
+    raise RuntimeError(f"DATABASE_URL non trovata (cercato in {ENV_PATH}).")
 config.set_main_option("sqlalchemy.url", db_url)
 
-# === Metadata dei modelli ===
-from app.db import Base  # noqa: E402
-import app.models  # noqa: F401,E402  # registra tutti i modelli
-
+# Metadata dei modelli
+from app.db import Base
+import app.models  # importa per registrare tutti i modelli
 target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    """Esegue le migrazioni in modalità 'offline'."""
     url = config.get_main_option("sqlalchemy.url")
-    context.configure(
-        url=url,
-        target_metadata=target_metadata,
-        literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
-    )
+    context.configure(url=url, target_metadata=target_metadata,
+                      literal_binds=True, dialect_opts={"paramstyle": "named"})
     with context.begin_transaction():
         context.run_migrations()
 
 
 def run_migrations_online() -> None:
-    """Esegue le migrazioni in modalità 'online'."""
     connectable = engine_from_config(
         config.get_section(config.config_ini_section) or {},
         prefix="sqlalchemy.",
