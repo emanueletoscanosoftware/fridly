@@ -1,0 +1,13 @@
+# Python venv
+backend/.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Env files
+backend/.env
+
+# Editor/OS
+.DS_Store
+Thumbs.db
