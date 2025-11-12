@@ -2,6 +2,7 @@
 from fastapi import FastAPI
 # Prende l'oggetto router creato prima; i file __init__.py anche se vuoti diconono a Python che /app e app/api/ sono package importabili
 from app.api.routes import router as api_router
+import app.models  # necessario per far "vedere" i modelli ad Alembic
 
 # Creazione istanza FastAPI
 app = FastAPI()
