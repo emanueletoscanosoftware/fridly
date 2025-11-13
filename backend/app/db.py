@@ -1,10 +1,10 @@
 from __future__ import annotations
-
 import os
 from pathlib import Path
 from sqlalchemy import create_engine, MetaData
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from dotenv import load_dotenv, find_dotenv
+from typing import Generator
 
 # Carica .env in modo robusto (per Alembic e runtime)
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -31,3 +31,15 @@ Base = declarative_base(metadata=metadata)
 # Engine e factory delle Session
 engine = create_engine(DATABASE_URL, echo=True, future=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+
+def get_db() -> Generator[Session, None, None]:
+    """
+    Ritorna una Session SQLAlchemy per la durata della richiesta.
+    - 'yield' consegna la sessione a FastAPI;
+    - quando la richiesta finisce, il 'finally' chiude la sessione.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

@@ -1,16 +1,21 @@
-# Importa la classe FastAPI
 from fastapi import FastAPI
-# Prende l'oggetto router creato prima; i file __init__.py anche se vuoti diconono a Python che /app e app/api/ sono package importabili
-from app.api.routes import router as api_router
-import app.models  # necessario per far "vedere" i modelli ad Alembic
 
-# Creazione istanza FastAPI
+# 1) Crea l'istanza FastAPI
 app = FastAPI()
 
-# Aggancia tutte le routes del router sotto il percorso /api
-app.include_router(api_router, prefix="/api")
+# 2) Importa i modelli senza sovrascrivere la variabile "app"
+#    NOTA: prima probabilmente avevi "import app.models" (che rompeva tutto)
+from app import models  # noqa: F401  # importato solo per i side-effect (registrare i modelli)
 
-# Decoratore: gestore della rotta GET
-@app.get("/") # tipo di richiesta (leggere dati)
+# 3) Importa i router
+from app.api.routes import router as health_router
+from app.api.auth import router as auth_router
+
+# 4) Monta i router sull'app FastAPI
+app.include_router(health_router, prefix="/api")
+app.include_router(auth_router)  # ha già prefix="/api/auth" definito nel router
+
+# 5) Rotta base di test
+@app.get("/")
 def read_root():
-    return {"message": "Fridly API up!"} # FastAPI trasforma il dizionario in JSON automaticamente
+    return {"message": "Fridly API up!"}
