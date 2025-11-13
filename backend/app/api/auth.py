@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 from app.db import get_db
@@ -33,23 +33,35 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
     return user
 
 @router.post("/login", response_model=Token)
-def login(payload: UserCreate, db: Session = Depends(get_db)):
+def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
     """
-    Verifica credenziali:
-    - trova l'utente per email
-    - confronta password (verify)
-    - se ok, crea un JWT e lo restituisce
+    Endpoint di login usato anche dal popup "Authorize" di Swagger.
+
+    Swagger invia un form con:
+    - username: noi lo useremo come email
+    - password: la password in chiaro
+
+    OAuth2PasswordRequestForm li incapsula in 'form_data'.
     """
-    user = db.query(User).filter(User.email == payload.email).first()
-    if not user or not verify_password(payload.password, user.hashed_password):
-        # Non dire mai quale dei due è sbagliato: è più sicuro
+    # prendiamo l'email dal campo "username" del form
+    email = form_data.username
+
+    # 1) cerchiamo l'utente per email
+    user = db.query(User).filter(User.email == email).first()
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        # stesso messaggio per email o password errata (più sicuro)
         raise HTTPException(status_code=400, detail="Credenziali non valide")
-    
+
+    # 2) creiamo il token con subject = id utente
     access_token = create_access_token(subject=user.id)
     return Token(access_token=access_token)
 
+
 # Dice a FastAPI dove si ottiene il token (info per /docs). Noi accettiamo Bearer token.
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     """
